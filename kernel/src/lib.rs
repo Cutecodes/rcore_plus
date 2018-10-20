@@ -72,10 +72,10 @@ pub extern "C" fn rust_main() -> ! {
     // ATTENTION: we have a very small stack and no guard page
     println!("Hello World{}", "!");
 
-//    logging::init();
-//    arch::init();
+    logging::init();
+    arch::init();
 //    process::init();
-//    unsafe { arch::interrupt::enable(); }
+    unsafe { arch::interrupt::enable(); }
 //
 //    fs::shell();
 
