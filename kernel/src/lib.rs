@@ -48,12 +48,12 @@ mod memory;
 mod lang;
 mod util;
 mod consts;
-//mod process;
+mod process;
 //mod syscall;
 //mod fs;
 
-//use process::{thread, thread_};
-//mod sync;
+use process::{thread, thread_};
+mod sync;
 //mod trap;
 mod console;
 
@@ -74,7 +74,7 @@ pub extern "C" fn rust_main() -> ! {
 
     logging::init();
     arch::init();
-//    process::init();
+    process::init();
     unsafe { arch::interrupt::enable(); }
 //
 //    fs::shell();
