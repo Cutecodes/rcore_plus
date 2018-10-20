@@ -49,12 +49,12 @@ mod lang;
 mod util;
 mod consts;
 mod process;
-//mod syscall;
+mod syscall;
 //mod fs;
 
 use process::{thread, thread_};
 mod sync;
-//mod trap;
+mod trap;
 mod console;
 
 #[allow(dead_code)]
