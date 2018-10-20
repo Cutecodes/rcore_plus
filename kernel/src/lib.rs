@@ -77,7 +77,7 @@ pub extern "C" fn rust_main() -> ! {
     process::init();
     unsafe { arch::interrupt::enable(); }
 //
-//    fs::shell();
+    fs::shell();
 
 //    thread::test::local_key();
 //    thread::test::unpack();
