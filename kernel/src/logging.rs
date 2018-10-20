@@ -13,6 +13,7 @@ pub fn init() {
         Some("trace") => LevelFilter::Trace,
         _ => LevelFilter::Warn,
     });
+    log::set_max_level(LevelFilter::Info); //chy for debug
 }
 
 #[macro_export]

@@ -44,7 +44,7 @@ use linked_list_allocator::LockedHeap;
 
 #[macro_use]    // print!
 pub mod logging;
-//mod memory;
+mod memory;
 mod lang;
 mod util;
 mod consts;
