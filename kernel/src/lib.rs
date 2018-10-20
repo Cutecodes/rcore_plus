@@ -50,7 +50,7 @@ mod util;
 mod consts;
 mod process;
 mod syscall;
-//mod fs;
+mod fs;
 
 use process::{thread, thread_};
 mod sync;
