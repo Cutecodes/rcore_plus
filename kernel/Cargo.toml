@@ -1,0 +1,47 @@
+[package]
+name = "rcore"
+version = "0.1.0"
+edition = "2018"
+authors = [
+    "WangRunji <wangrunji0408@163.com>",
+    "Ben Pig Chu <benpichu@gmail.com>",
+    "dzy <daizy15@mails.tsinghua.edu.cn>",
+    "equation314 <equation618@gmail.com>",
+    "cfgbd <cfgbdv@163.com>",
+    "koumingyang <1761674434@qq.com>",
+    "lcy1996 <992195697@qq.com>",
+    "chenqiuhao <haohao0924@126.com>",
+    "maoyuchaxue <wangjt15@mails.tsinghua.edu.cn>"
+]
+
+[features]
+
+[profile.dev]
+# MUST >= 1 : Enable RVO to avoid stack overflow
+opt-level = 1
+
+[profile.release]
+debug = true
+
+[dependencies]
+bare-metal = "0.2.0"
+log = "0.4"
+spin = "0.4"
+once = "0.3"
+xmas-elf = "0.6"
+bitflags = "1.0"
+bit_field = "0.9"
+volatile = "0.2"
+linked_list_allocator = "0.6"
+lazy_static = { version = "1.2", features = ["spin_no_std"] }
+bit-allocator = { path = "../crate/bit-allocator" }
+rcore-memory = { path = "../crate/memory" }
+rcore-process = { path = "../crate/process" }
+simple-filesystem = { git = "https://github.com/wangrunji0408/SimpleFileSystem-Rust" }
+
+#[target.'cfg(any(target_arch = "riscv32"))'.dependencies]
+#riscv = { git = "https://github.com/riscv-and-rust-and-decaf/riscv" }
+#bbl = { path = "../crate/bbl" }
+
+[build-dependencies]
+cc = "1.0"

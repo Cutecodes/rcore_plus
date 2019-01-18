@@ -1,5 +1,17 @@
-/target
-**/*.rs.bk
+build
+target
+/kernel/src/arch/x86_64/interrupt/vector.asm
+
 Cargo.lock
-.idea
-/*.img
+!kernel/Cargo.lock
+!user/Cargo.lock
+
+.DS_Store
+
+# for eclipse
+.project
+kernel/.idea/
+kernel/kernel.iml
+rcore_plus/
+tools/llc
+virt.out

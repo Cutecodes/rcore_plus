@@ -1,6 +1,65 @@
+sudo: false
+
+dist: xenial
+
 language: rust
-rust:
-  - nightly
+
+rust: nightly-2019-01-01
+
+os:
+  - linux
+  - osx
+
+cache:
+  cargo: true
+  directories:
+    - $HOME/Library/Caches/Homebrew
+    - $TRAVIS_BUILD_DIR/qemu-3.1.0
+
+addons:
+  homebrew:
+    packages:
+      - qemu
+
+env:
+  matrix:
+    - ARCH="riscv64"
+    - ARCH="riscv64" OPTS="board=k210"
+    - ARCH="riscv32"
+    - ARCH="riscv32" OPTS="m_mode=1"
+    - ARCH="x86_64"
+    - ARCH="aarch64"
+
+install:
+  - if [ $ARCH = riscv32 ] || [ $ARCH = riscv64 ]; then
+      [ $TRAVIS_OS_NAME = linux ] && export FILE="riscv64-unknown-elf-gcc-8.1.0-2018.12.0-x86_64-linux-ubuntu14";
+      [ $TRAVIS_OS_NAME = osx   ] && export FILE="riscv64-unknown-elf-gcc-8.1.0-2018.12.0-x86_64-apple-darwin";
+      wget https://static.dev.sifive.com/dev-tools/$FILE.tar.gz;
+      tar xf $FILE.tar.gz;
+      export PATH=$PATH:$PWD/$FILE/bin;
+    fi
+  - if [ $ARCH = aarch64 ]; then
+    if [ $TRAVIS_OS_NAME = linux ]; then
+      wget https://web.stanford.edu/class/cs140e/files/aarch64-none-elf-linux-x64.tar.gz;
+      tar -xzvf aarch64-none-elf-linux-x64.tar.gz;
+      export PATH=$PATH:$PWD/aarch64-none-elf/bin;
+    elif [ $TRAVIS_OS_NAME = osx ]; then
+      brew tap SergioBenitez/osxct;
+      brew install aarch64-none-elf;
+    fi;
+    fi
+  - if [ $TRAVIS_OS_NAME = linux ]; then
+      wget https://download.qemu.org/qemu-3.1.0.tar.xz && tar xvJf qemu-3.1.0.tar.xz > /dev/null && cd qemu-3.1.0 && ./configure --target-list=$ARCH-softmmu && make && cd ..;
+      export PATH=$PATH:$PWD/qemu-3.1.0/$ARCH-softmmu;
+    fi
+
+before_script:
+  - rustup component add rust-src
+  - (test -x $HOME/.cargo/bin/cargo-xbuild || cargo install cargo-xbuild)
+  - if [ $ARCH = x86_64 ]; then
+      (test -x $HOME/.cargo/bin/bootimage || cargo install bootimage);
+    fi
+
 script:
-  - cargo build --bin mksfs --features "std"
-  - cargo test --verbose -- --test-threads=1
+  - cd kernel && make build arch=$ARCH $OPTS && cd ..
+  - cd user && make arch=$ARCH
