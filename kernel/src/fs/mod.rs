@@ -18,7 +18,6 @@ mod pipe;
 mod stdio;
 
 /// Hard link user programs
-#[cfg(feature = "link_user")]
 global_asm!(concat!(
     r#"
 	.section .data.img
@@ -35,20 +34,6 @@ _user_img_end:
 lazy_static! {
     /// The root of file system
     pub static ref ROOT_INODE: Arc<INode> = {
-        #[cfg(not(feature = "link_user"))]
-        let device = {
-            #[cfg(any(target_arch = "riscv32", target_arch = "riscv64", target_arch = "x86_64"))]
-            {
-                crate::drivers::BLK_DRIVERS.read().iter()
-                    .next().expect("Block device not found")
-                    .clone()
-            }
-            #[cfg(target_arch = "aarch64")]
-            {
-                unimplemented!()
-            }
-        };
-        #[cfg(feature = "link_user")]
         let device = {
             extern {
                 fn _user_img_start();

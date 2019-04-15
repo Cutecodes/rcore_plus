@@ -52,7 +52,7 @@ user_dir := ../user
 
 ### export environments ###
 
-ifeq ($(arch), $(filter $(arch), aarch64 mipsel))
+ifeq ($(arch), $(filter $(arch), aarch64 mipsel x86_64))
 #link user img, so use original image
 export SFSIMG = $(user_dir)/build/$(arch).img
 else
@@ -89,9 +89,6 @@ qemu_net_opts := \
 ifeq ($(arch), x86_64)
 qemu_opts += \
 	-drive format=raw,file=$(bootimage) \
-	-drive format=qcow2,file=$(SFSIMG),media=disk,cache=writeback,id=sfsimg,if=none \
-	-device ahci,id=ahci0 \
-	-device ide-drive,drive=sfsimg,bus=ahci0.0 \
 	-serial mon:stdio \
 	-m 4G \
 	-device isa-debug-exit
@@ -189,7 +186,7 @@ ifeq ($(mode), release)
 build_args += --release
 endif
 
-
+features += link_user
 
 ### prefix ###
 ifeq ($(arch), x86_64)
