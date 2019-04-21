@@ -203,6 +203,15 @@ impl<T: InactivePageTable> MemorySet<T> {
             page_table: T::new_bare(),
         }
     }
+    pub fn show_vma(&mut self) {
+        info!("---- MemorySet::areas ---- ");
+
+        for i in 0..self.areas.len() {
+            info!("[{:x} {:x}] {:?}  {:?}",
+                  self.areas[i].start_addr, self.areas[i].end_addr,self.areas[i].attr, self.areas[i].name);
+        }
+    }
+
     /// Check the pointer is within the readable memory
     pub fn check_read_ptr<S>(&self, ptr: *const S) -> VMResult<()> {
         self.check_read_array(ptr, 1)

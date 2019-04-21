@@ -31,12 +31,12 @@
 #   extra_nic = on | off         Only available on x86_64, add an additional e1000 nic
 #   u_boot = /path/to/u-boot.bin Only available on aarch64, use u-boot to boot rcore
 
-arch ?= riscv64
+arch ?= x86_64
 board ?= none
 mode ?= release
-LOG  ?=
+LOG  ?= debug
 graphic ?= off
-smp  ?= 4
+smp  ?= 1
 pci_passthru ?=
 init ?=
 extra_nic ?= off

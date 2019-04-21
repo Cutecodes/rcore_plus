@@ -19,6 +19,11 @@ pub fn timer() {
 }
 
 pub fn error(tf: &TrapFrame) -> ! {
+
+    //let proc = process();
+
+    process().vm.show_vma();
+
     error!("{:#x?}", tf);
     let tid = processor().tid();
     error!("On CPU{} Thread {}", cpu::id(), tid);

@@ -1,5 +1,5 @@
 //! Syscalls for file system
-
+use alloc::prelude::ToString;
 use core::cell::UnsafeCell;
 use core::cmp::min;
 use core::mem::size_of;
@@ -257,8 +257,8 @@ pub fn sys_openat(dir_fd: usize, path: *const u8, flags: usize, mode: usize) -> 
         dir_fd as isize, path, flags, mode
     );
 
+    let (dir_path, file_name) = split_path(&path);
     let inode = if flags.contains(OpenFlags::CREATE) {
-        let (dir_path, file_name) = split_path(&path);
         // relative to cwd
         let dir_inode = proc.lookup_inode_at(dir_fd, dir_path, true)?;
         match dir_inode.find(file_name) {
@@ -279,7 +279,7 @@ pub fn sys_openat(dir_fd: usize, path: *const u8, flags: usize, mode: usize) -> 
 
     let fd = proc.get_free_fd();
 
-    let file = FileHandle::new(inode, flags.to_options());
+    let file = FileHandle::new(inode, flags.to_options(),file_name.to_string());
     proc.files.insert(fd, FileLike::File(file));
     Ok(fd)
 }
@@ -646,6 +646,7 @@ pub fn sys_pipe(fds: *mut u32) -> SysResult {
                 write: false,
                 append: false,
             },
+            "R_PIPE".to_string(),
         )),
     );
 
@@ -659,6 +660,7 @@ pub fn sys_pipe(fds: *mut u32) -> SysResult {
                 write: true,
                 append: false,
             },
+            "W_PIPE".to_string(),
         )),
     );
 

@@ -3,7 +3,7 @@ use rcore_memory::memory_set::MemoryAttr;
 use rcore_memory::paging::PageTable;
 use rcore_memory::Page;
 use rcore_memory::PAGE_SIZE;
-
+use crate::fs::FileLike;
 use crate::memory::GlobalFrameAlloc;
 
 use super::*;
@@ -24,6 +24,15 @@ pub fn sys_mmap(
     );
 
     let mut proc = process();
+    if let Some(FileLike::File(file))= proc.files.get(&fd) {
+
+        info!(
+            "mmap: file fd={}, name={:?}",
+            fd, file.get_name(),
+        );
+        let fn:String =file.get_name();
+    }
+
     if addr == 0 {
         // although NULL can be a valid address
         // but in C, NULL is regarded as allocation failure
@@ -55,13 +64,22 @@ pub fn sys_mmap(
         let _ = proc.get_file(fd)?;
 
         // TODO: delay mmap file
-        proc.vm.push(
-            addr,
-            addr + len,
-            prot.to_attr(),
-            ByFrame::new(GlobalFrameAlloc),
-            "mmap_file",
-        );
+
+        if let Some(FileLike::File(filehandle))= proc.files.get(&fd) {
+            proc.vm.push(
+                addr,
+                addr + len,
+                prot.to_attr(),
+                ByFrame::new(GlobalFrameAlloc),
+                filehandle.get_name(),
+            );
+        }else {
+           error!("sys_map: can note get the file name for mmap");
+        }
+
+
+
+
         let data = unsafe { slice::from_raw_parts_mut(addr as *mut u8, len) };
         let file = proc.get_file(fd)?;
         let read_len = file.read_at(offset, data)?;

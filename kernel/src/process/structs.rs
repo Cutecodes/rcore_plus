@@ -1,3 +1,4 @@
+use alloc::prelude::ToString;
 use alloc::{boxed::Box, collections::BTreeMap, string::String, sync::Arc, sync::Weak, vec::Vec};
 use core::fmt;
 
@@ -258,6 +259,7 @@ impl Thread {
                     write: false,
                     append: false,
                 },
+                "STDIN".to_string(),
             )),
         );
         files.insert(
@@ -269,6 +271,7 @@ impl Thread {
                     write: true,
                     append: false,
                 },
+                "STDOUT".to_string(),
             )),
         );
         files.insert(
@@ -280,6 +283,7 @@ impl Thread {
                     write: true,
                     append: false,
                 },
+                "STDERR".to_string(),
             )),
         );
 

@@ -9,6 +9,7 @@ pub struct FileHandle {
     inode: Arc<INode>,
     offset: u64,
     options: OpenOptions,
+    filename: String,
 }
 
 #[derive(Debug, Clone)]
@@ -27,11 +28,12 @@ pub enum SeekFrom {
 }
 
 impl FileHandle {
-    pub fn new(inode: Arc<INode>, options: OpenOptions) -> Self {
+    pub fn new(inode: Arc<INode>, options: OpenOptions, filename: String) -> Self {
         FileHandle {
             inode,
             offset: 0,
             options,
+            filename,
         }
     }
 
@@ -115,5 +117,9 @@ impl FileHandle {
 
     pub fn io_control(&self, cmd: u32, arg: usize) -> Result<()> {
         self.inode.io_control(cmd, arg)
+    }
+
+    pub fn get_name(&self) -> &String {
+        &self.filename
     }
 }
