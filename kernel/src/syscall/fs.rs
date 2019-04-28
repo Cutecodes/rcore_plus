@@ -203,18 +203,23 @@ pub fn sys_select(
 
 pub fn sys_readv(fd: usize, iov_ptr: *const IoVec, iov_count: usize) -> SysResult {
     info!(
-        "readv: fd: {}, iov: {:?}, count: {}",
+        "readv:BEG fd: {}, iov: {:?}, count: {}",
         fd, iov_ptr, iov_count
     );
     let mut proc = process();
+    info!("readv:STEP0: check_and_new");
     let mut iovs = unsafe { IoVecs::check_and_new(iov_ptr, iov_count, &proc.vm, true)? };
-
+    info!("readv:STEP0.5: get_file_like");
     // read all data to a buf
     let file_like = proc.get_file_like(fd)?;
+    info!("readv:STEP0.6: new_buf");
     let mut buf = iovs.new_buf(true);
+    info!("readv:STEP0.7: read buf");
     let len = file_like.read(buf.as_mut_slice())?;
+    info!("readv:STEP1: read from file, len {}",len);
     // copy data to user
     iovs.write_all_from_slice(&buf[..len]);
+    info!("readv:STEP2: write to user iovs");
     Ok(len)
 }
 
@@ -1235,7 +1240,9 @@ impl IoVecs {
         vm: &MemorySet,
         readv: bool,
     ) -> Result<Self, SysError> {
+        info!("check_and_new: step1");
         let iovs = vm.check_read_array(iov_ptr, iov_count)?.to_vec();
+        info!("check_and_new: step1.5");
         // check all bufs in iov
         for iov in iovs.iter() {
             // skip empty iov
@@ -1243,7 +1250,9 @@ impl IoVecs {
                 continue;
             }
             if readv {
+                info!("check_and_new: step2");
                 vm.check_write_array(iov.base, iov.len)?;
+                info!("check_and_new: step3");
             } else {
                 vm.check_read_array(iov.base, iov.len)?;
             }

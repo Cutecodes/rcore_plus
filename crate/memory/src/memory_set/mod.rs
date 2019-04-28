@@ -56,6 +56,10 @@ impl MemoryArea {
     }
     /// Check the array is within the readable memory
     fn check_read_array<S>(&self, ptr: *const S, count: usize) -> bool {
+        info!("check_read_array ptr {} ptr+size {}, start {}, end {}", ptr as usize,unsafe { ptr.add(count) as usize},
+              Page::of_addr(self.start_addr).start_address(),
+              Page::of_addr(self.end_addr + PAGE_SIZE - 1).start_address()
+        );
         // page align
         ptr as usize >= Page::of_addr(self.start_addr).start_address()
             && unsafe { ptr.add(count) as usize }
@@ -63,6 +67,7 @@ impl MemoryArea {
     }
     /// Check the array is within the writable memory
     fn check_write_array<S>(&self, ptr: *mut S, count: usize) -> bool {
+        info!("check_write_array ptr {} size {}", ptr as usize, count);
         !self.attr.readonly && self.check_read_array(ptr, count)
     }
     /// Check the null-end C string is within the readable memory, and is valid.

@@ -57,7 +57,7 @@ pub fn sys_clone(
 /// Wait for the process exit.
 /// Return the PID. Store exit code to `wstatus` if it's not null.
 pub fn sys_wait4(pid: isize, wstatus: *mut i32) -> SysResult {
-    //info!("wait4: pid: {}, code: {:?}", pid, wstatus);
+    info!("wait4: pid: {}, code: {:?}", pid, wstatus);
     let wstatus = if !wstatus.is_null() {
         Some(unsafe { process().vm.check_write_ptr(wstatus)? })
     } else {
@@ -106,6 +106,7 @@ pub fn sys_wait4(pid: isize, wstatus: *mut i32) -> SysResult {
                 .is_none(),
         };
         if invalid {
+            info!("wait:ERR thread {} -> {:?}  SysError::ECHILD",thread::current().id(), target);
             return Err(SysError::ECHILD);
         }
         info!(
