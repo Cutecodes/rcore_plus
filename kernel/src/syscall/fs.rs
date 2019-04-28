@@ -21,8 +21,7 @@ pub fn sys_read(fd: usize, base: *mut u8, len: usize) -> SysResult {
         // we trust pid 0 process
         info!("read: fd: {}, base: {:?}, len: {:#x}", fd, base, len);
     }
-    proc.vm.check_write_array(base, len)?;
-    let slice = unsafe { slice::from_raw_parts_mut(base, len) };
+    let slice = unsafe { proc.vm.check_write_array(base, len)? };
     let file_like = proc.get_file_like(fd)?;
     let len = file_like.read(slice)?;
     Ok(len)
@@ -34,8 +33,7 @@ pub fn sys_write(fd: usize, base: *const u8, len: usize) -> SysResult {
         // we trust pid 0 process
         info!("write: fd: {}, base: {:?}, len: {:#x}", fd, base, len);
     }
-    proc.vm.check_read_array(base, len)?;
-    let slice = unsafe { slice::from_raw_parts(base, len) };
+    let slice = unsafe { proc.vm.check_read_array(base, len)? };
     let file_like = proc.get_file_like(fd)?;
     let len = file_like.write(slice)?;
     Ok(len)
@@ -47,9 +45,7 @@ pub fn sys_pread(fd: usize, base: *mut u8, len: usize, offset: usize) -> SysResu
         fd, base, len, offset
     );
     let mut proc = process();
-    proc.vm.check_write_array(base, len)?;
-
-    let slice = unsafe { slice::from_raw_parts_mut(base, len) };
+    let slice = unsafe { proc.vm.check_write_array(base, len)? };
     let len = proc.get_file(fd)?.read_at(offset, slice)?;
     Ok(len)
 }
@@ -60,9 +56,7 @@ pub fn sys_pwrite(fd: usize, base: *const u8, len: usize, offset: usize) -> SysR
         fd, base, len, offset
     );
     let mut proc = process();
-    proc.vm.check_read_array(base, len)?;
-
-    let slice = unsafe { slice::from_raw_parts(base, len) };
+    let slice = unsafe { proc.vm.check_read_array(base, len)? };
     let len = proc.get_file(fd)?.write_at(offset, slice)?;
     Ok(len)
 }
@@ -72,8 +66,8 @@ pub fn sys_ppoll(ufds: *mut PollFd, nfds: usize, timeout: *const TimeSpec) -> Sy
     let timeout_msecs = if timeout.is_null() {
         1 << 31 // infinity
     } else {
-        proc.vm.check_read_ptr(timeout)?;
-        unsafe { (*timeout).to_msec() }
+        let timeout = unsafe { proc.vm.check_read_ptr(timeout)? };
+        timeout.to_msec()
     };
     drop(proc);
 
@@ -89,9 +83,8 @@ pub fn sys_poll(ufds: *mut PollFd, nfds: usize, timeout_msecs: usize) -> SysResu
             ufds, nfds, timeout_msecs
         );
     }
-    proc.vm.check_write_array(ufds, nfds)?;
 
-    let polls = unsafe { slice::from_raw_parts_mut(ufds, nfds) };
+    let polls = unsafe { proc.vm.check_write_array(ufds, nfds)? };
     for poll in polls.iter() {
         if proc.files.get(&(poll.fd as usize)).is_none() {
             return Err(SysError::EINVAL);
@@ -156,9 +149,9 @@ pub fn sys_select(
     let mut read_fds = FdSet::new(&proc.vm, read, nfds)?;
     let mut write_fds = FdSet::new(&proc.vm, write, nfds)?;
     let mut err_fds = FdSet::new(&proc.vm, err, nfds)?;
-    let timeout_msecs = if timeout as usize != 0 {
-        proc.vm.check_read_ptr(timeout)?;
-        unsafe { *timeout }.to_msec()
+    let timeout_msecs = if !timeout.is_null() {
+        let timeout = unsafe { proc.vm.check_read_ptr(timeout)? };
+        timeout.to_msec()
     } else {
         // infinity
         1 << 31
@@ -214,7 +207,7 @@ pub fn sys_readv(fd: usize, iov_ptr: *const IoVec, iov_count: usize) -> SysResul
         fd, iov_ptr, iov_count
     );
     let mut proc = process();
-    let mut iovs = IoVecs::check_and_new(iov_ptr, iov_count, &proc.vm, true)?;
+    let mut iovs = unsafe { IoVecs::check_and_new(iov_ptr, iov_count, &proc.vm, true)? };
 
     // read all data to a buf
     let file_like = proc.get_file_like(fd)?;
@@ -234,7 +227,7 @@ pub fn sys_writev(fd: usize, iov_ptr: *const IoVec, iov_count: usize) -> SysResu
             fd, iov_ptr, iov_count
         );
     }
-    let iovs = IoVecs::check_and_new(iov_ptr, iov_count, &proc.vm, false)?;
+    let iovs = unsafe { IoVecs::check_and_new(iov_ptr, iov_count, &proc.vm, false)? };
 
     let buf = iovs.read_all_to_vec();
     let len = buf.len();
@@ -277,10 +270,9 @@ pub fn sys_openat(dir_fd: usize, path: *const u8, flags: usize, mode: usize) -> 
         proc.lookup_inode_at(dir_fd, &path, true)?
     };
 
-    let fd = proc.get_free_fd();
+    let file = FileHandle::new(inode, flags.to_options());
+    let fd = proc.add_file(FileLike::File(file));
 
-    let file = FileHandle::new(inode, flags.to_options(),file_name.to_string());
-    proc.files.insert(fd, FileLike::File(file));
     Ok(fd)
 }
 
@@ -317,12 +309,12 @@ pub fn sys_getcwd(buf: *mut u8, len: usize) -> SysResult {
         // we trust pid 0 process
         info!("getcwd: buf: {:?}, len: {:#x}", buf, len);
     }
-    proc.vm.check_write_array(buf, len)?;
+    let buf = unsafe { proc.vm.check_write_array(buf, len)? };
     if proc.cwd.len() + 1 > len {
         return Err(SysError::ERANGE);
     }
-    unsafe { util::write_cstr(buf, &proc.cwd) }
-    Ok(buf as usize)
+    unsafe { util::write_cstr(buf.as_mut_ptr(), &proc.cwd) }
+    Ok(buf.as_ptr() as usize)
 }
 
 pub fn sys_lstat(path: *const u8, stat_ptr: *mut Stat) -> SysResult {
@@ -332,19 +324,17 @@ pub fn sys_lstat(path: *const u8, stat_ptr: *mut Stat) -> SysResult {
 pub fn sys_fstat(fd: usize, stat_ptr: *mut Stat) -> SysResult {
     info!("fstat: fd: {}, stat_ptr: {:?}", fd, stat_ptr);
     let mut proc = process();
-    proc.vm.check_write_ptr(stat_ptr)?;
+    let stat_ref = unsafe { proc.vm.check_write_ptr(stat_ptr)? };
     let file = proc.get_file(fd)?;
     let stat = Stat::from(file.metadata()?);
-    unsafe {
-        stat_ptr.write(stat);
-    }
+    *stat_ref = stat;
     Ok(0)
 }
 
 pub fn sys_fstatat(dirfd: usize, path: *const u8, stat_ptr: *mut Stat, flags: usize) -> SysResult {
     let proc = process();
     let path = unsafe { proc.vm.check_and_clone_cstr(path)? };
-    proc.vm.check_write_ptr(stat_ptr)?;
+    let stat_ref = unsafe { proc.vm.check_write_ptr(stat_ptr)? };
     let flags = AtFlags::from_bits_truncate(flags);
     info!(
         "fstatat: dirfd: {}, path: {:?}, stat_ptr: {:?}, flags: {:?}",
@@ -353,9 +343,7 @@ pub fn sys_fstatat(dirfd: usize, path: *const u8, stat_ptr: *mut Stat, flags: us
 
     let inode = proc.lookup_inode_at(dirfd, &path, !flags.contains(AtFlags::SYMLINK_NOFOLLOW))?;
     let stat = Stat::from(inode.metadata()?);
-    unsafe {
-        stat_ptr.write(stat);
-    }
+    *stat_ref = stat;
     Ok(0)
 }
 
@@ -370,14 +358,13 @@ pub fn sys_readlink(path: *const u8, base: *mut u8, len: usize) -> SysResult {
 pub fn sys_readlinkat(dirfd: usize, path: *const u8, base: *mut u8, len: usize) -> SysResult {
     let proc = process();
     let path = unsafe { proc.vm.check_and_clone_cstr(path)? };
-    proc.vm.check_write_array(base, len)?;
+    let slice = unsafe { proc.vm.check_write_array(base, len)? };
     info!("readlink: path: {:?}, base: {:?}, len: {}", path, base, len);
 
     let inode = proc.lookup_inode_at(dirfd, &path, false)?;
     if inode.metadata()?.type_ == FileType::SymLink {
         // TODO: recursive link resolution and loop detection
-        let mut slice = unsafe { slice::from_raw_parts_mut(base, len) };
-        let len = inode.read_at(0, &mut slice)?;
+        let len = inode.read_at(0, slice)?;
         Ok(len)
     } else {
         Err(SysError::EINVAL)
@@ -431,13 +418,13 @@ pub fn sys_getdents64(fd: usize, buf: *mut LinuxDirent64, buf_size: usize) -> Sy
         fd, buf, buf_size
     );
     let mut proc = process();
-    proc.vm.check_write_array(buf as *mut u8, buf_size)?;
+    let buf = unsafe { proc.vm.check_write_array(buf as *mut u8, buf_size)? };
     let file = proc.get_file(fd)?;
     let info = file.metadata()?;
     if info.type_ != FileType::Dir {
         return Err(SysError::ENOTDIR);
     }
-    let mut writer = unsafe { DirentBufWriter::new(buf, buf_size) };
+    let mut writer = DirentBufWriter::new(buf);
     loop {
         let name = match file.read_entry() {
             Err(FsError::EntryNotFound) => break,
@@ -633,12 +620,10 @@ pub fn sys_pipe(fds: *mut u32) -> SysResult {
     info!("pipe: fds: {:?}", fds);
 
     let mut proc = process();
-    proc.vm.check_write_array(fds, 2)?;
+    let fds = unsafe { proc.vm.check_write_array(fds, 2)? };
     let (read, write) = Pipe::create_pair();
 
-    let read_fd = proc.get_free_fd();
-    proc.files.insert(
-        read_fd,
+    let read_fd = proc.add_file(
         FileLike::File(FileHandle::new(
             Arc::new(read),
             OpenOptions {
@@ -650,9 +635,7 @@ pub fn sys_pipe(fds: *mut u32) -> SysResult {
         )),
     );
 
-    let write_fd = proc.get_free_fd();
-    proc.files.insert(
-        write_fd,
+    let write_fd = proc.add_file(
         FileLike::File(FileHandle::new(
             Arc::new(write),
             OpenOptions {
@@ -664,10 +647,8 @@ pub fn sys_pipe(fds: *mut u32) -> SysResult {
         )),
     );
 
-    unsafe {
-        fds.write(read_fd as u32);
-        fds.add(1).write(write_fd as u32);
-    }
+    fds[0] = read_fd as u32;
+    fds[1] = write_fd as u32;
 
     info!("pipe: created rfd: {} wfd: {}", read_fd, write_fd);
 
@@ -686,7 +667,7 @@ pub fn sys_sendfile(
     count: usize,
 ) -> SysResult {
     info!(
-        "sendfile: out: {}, in: {}, offset_ptr: {:?}, count: {}",
+        "sendfile:BEG out: {}, in: {}, offset_ptr: {:?}, count: {}",
         out_fd, in_fd, offset_ptr, count
     );
     let proc = process();
@@ -698,8 +679,7 @@ pub fn sys_sendfile(
 
     let mut read_offset = if !offset_ptr.is_null() {
         unsafe {
-            (*proc_cell.get()).vm.check_read_ptr(offset_ptr)?;
-            offset_ptr.read()
+            *(*proc_cell.get()).vm.check_read_ptr(offset_ptr)?
         }
     } else {
         in_file.seek(SeekFrom::Current(0))? as usize
@@ -707,6 +687,7 @@ pub fn sys_sendfile(
 
     // read from specified offset and write new offset back
     let mut bytes_read = 0;
+    let mut total_written = 0;
     while bytes_read < count {
         let len = min(buffer.len(), count - bytes_read);
         let read_len = in_file.read_at(read_offset, &mut buffer[..len])?;
@@ -715,14 +696,22 @@ pub fn sys_sendfile(
         }
         bytes_read += read_len;
         read_offset += read_len;
+
         let mut bytes_written = 0;
+        let mut rlen = read_len;
         while bytes_written < read_len {
-            let write_len = out_file.write(&buffer[bytes_written..])?;
+            let write_len = out_file.write(&buffer[bytes_written..(bytes_written+rlen)])?;
             if write_len == 0 {
+                info!(
+                    "sendfile:END_ERR out: {}, in: {}, offset_ptr: {:?}, count: {} = bytes_read {}, bytes_written {}, write_len {}",
+                    out_fd, in_fd, offset_ptr, count, bytes_read, bytes_written, write_len
+                );
                 return Err(SysError::EBADF);
             }
             bytes_written += write_len;
+            rlen-=write_len;
         }
+        total_written+=bytes_written;
     }
 
     if !offset_ptr.is_null() {
@@ -732,7 +721,11 @@ pub fn sys_sendfile(
     } else {
         in_file.seek(SeekFrom::Current(bytes_read as i64))?;
     }
-    return Ok(bytes_read);
+    info!(
+        "sendfile:END out: {}, in: {}, offset_ptr: {:?}, count: {} = bytes_read {}, total_written {}",
+        out_fd, in_fd, offset_ptr, count, bytes_read, total_written
+    );
+    return Ok(total_written);
 }
 
 impl Process {
@@ -875,18 +868,20 @@ pub struct LinuxDirent64 {
     name: [u8; 0],
 }
 
-struct DirentBufWriter {
+struct DirentBufWriter<'a> {
+    buf: &'a mut [u8],
     ptr: *mut LinuxDirent64,
     rest_size: usize,
     written_size: usize,
 }
 
-impl DirentBufWriter {
-    unsafe fn new(buf: *mut LinuxDirent64, size: usize) -> Self {
+impl<'a> DirentBufWriter<'a> {
+    fn new(buf: &'a mut [u8]) -> Self {
         DirentBufWriter {
-            ptr: buf,
-            rest_size: size,
+            ptr: buf.as_mut_ptr() as *mut LinuxDirent64,
+            rest_size: buf.len(),
             written_size: 0,
+            buf,
         }
     }
     fn try_write(&mut self, inode: u64, type_: u8, name: &str) -> bool {
@@ -1234,28 +1229,28 @@ pub struct IoVec {
 pub struct IoVecs(Vec<&'static mut [u8]>);
 
 impl IoVecs {
-    pub fn check_and_new(
+    pub unsafe fn check_and_new(
         iov_ptr: *const IoVec,
         iov_count: usize,
         vm: &MemorySet,
         readv: bool,
     ) -> Result<Self, SysError> {
-        vm.check_read_array(iov_ptr, iov_count)?;
-        let iovs = unsafe { slice::from_raw_parts(iov_ptr, iov_count) }.to_vec();
+        let iovs = vm.check_read_array(iov_ptr, iov_count)?.to_vec();
         // check all bufs in iov
         for iov in iovs.iter() {
-            if iov.len > 0 {
-                // skip empty iov
-                if readv {
-                    vm.check_write_array(iov.base, iov.len)?;
-                } else {
-                    vm.check_read_array(iov.base, iov.len)?;
-                }
+            // skip empty iov
+            if iov.len == 0 {
+                continue;
+            }
+            if readv {
+                vm.check_write_array(iov.base, iov.len)?;
+            } else {
+                vm.check_read_array(iov.base, iov.len)?;
             }
         }
         let slices = iovs
             .iter()
-            .map(|iov| unsafe { slice::from_raw_parts_mut(iov.base, iov.len) })
+            .map(|iov| slice::from_raw_parts_mut(iov.base, iov.len))
             .collect();
         Ok(IoVecs(slices))
     }
@@ -1337,11 +1332,10 @@ impl FdSet {
             })
         } else {
             let len = (nfds + FD_PER_ITEM - 1) / FD_PER_ITEM;
-            vm.check_write_array(addr, len)?;
             if len > MAX_FDSET_SIZE {
                 return Err(SysError::EINVAL);
             }
-            let slice = unsafe { slice::from_raw_parts_mut(addr, len) };
+            let slice = unsafe { vm.check_write_array(addr, len)? };
             let bitset: &'static mut BitSlice<LittleEndian, u32> = slice.into();
 
             // save the fdset, and clear it

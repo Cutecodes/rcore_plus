@@ -83,12 +83,10 @@ pub fn sys_gettimeofday(tv: *mut TimeVal, tz: *const u8) -> SysResult {
     }
 
     let proc = process();
-    proc.vm.check_write_ptr(tv)?;
+    let tv = unsafe { proc.vm.check_write_ptr(tv)? };
 
     let timeval = TimeVal::get_epoch();
-    unsafe {
-        *tv = timeval;
-    }
+    *tv = timeval;
     Ok(0)
 }
 
@@ -96,12 +94,10 @@ pub fn sys_clock_gettime(clock: usize, ts: *mut TimeSpec) -> SysResult {
     info!("clock_gettime: clock: {:?}, ts: {:?}", clock, ts);
 
     let proc = process();
-    proc.vm.check_write_ptr(ts)?;
+    let ts = unsafe { proc.vm.check_write_ptr(ts)? };
 
     let timespec = TimeSpec::get_epoch();
-    unsafe {
-        *ts = timespec;
-    }
+    *ts = timespec;
     Ok(0)
 }
 
@@ -109,10 +105,8 @@ pub fn sys_time(time: *mut u64) -> SysResult {
     let sec = get_epoch_usec() / USEC_PER_SEC;
     if time as usize != 0 {
         let proc = process();
-        proc.vm.check_write_ptr(time)?;
-        unsafe {
-            time.write(sec as u64);
-        }
+        let time = unsafe { proc.vm.check_write_ptr(time)? };
+        *time = sec as u64;
     }
     Ok(sec as usize)
 }
@@ -127,7 +121,7 @@ pub struct RUsage {
 pub fn sys_getrusage(who: usize, rusage: *mut RUsage) -> SysResult {
     info!("getrusage: who: {}, rusage: {:?}", who, rusage);
     let proc = process();
-    proc.vm.check_write_ptr(rusage)?;
+    let rusage = unsafe { proc.vm.check_write_ptr(rusage)? };
 
     let tick_base = *TICK_BASE;
     let tick = unsafe { crate::trap::TICK as u64 };
@@ -143,25 +137,23 @@ pub fn sys_getrusage(who: usize, rusage: *mut RUsage) -> SysResult {
             usec: (usec % USEC_PER_SEC) as usize,
         },
     };
-    unsafe { *rusage = new_rusage };
+    *rusage = new_rusage;
     Ok(0)
 }
-
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct Tms {
-    tms_utime: u64, /* user time */
+    tms_utime: u64,  /* user time */
     tms_stime: u64,  /* system time */
     tms_cutime: u64, /* user time of children */
     tms_cstime: u64, /* system time of children */
 }
 
-
-pub fn sys_times(buf:*mut Tms)-> SysResult {
+pub fn sys_times(buf: *mut Tms) -> SysResult {
     info!("times: buf: {:?}", buf);
     let proc = process();
-    proc.vm.check_write_ptr(buf)?;
+    let buf = unsafe { proc.vm.check_write_ptr(buf)? };
 
     let tick_base = *TICK_BASE;
     let tick = unsafe { crate::trap::TICK as u64 };
@@ -173,6 +165,6 @@ pub fn sys_times(buf:*mut Tms)-> SysResult {
         tms_cstime: 0,
     };
 
-    unsafe { *buf = new_buf };
+    *buf = new_buf;
     Ok(tick as usize)
 }
