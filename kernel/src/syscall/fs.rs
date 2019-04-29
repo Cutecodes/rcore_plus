@@ -1250,12 +1250,12 @@ impl IoVecs {
                 continue;
             }
             if readv {
-                info!("check_and_new: step2");
-                vm.check_write_array(iov.base, iov.len)?;
-                info!("check_and_new: step3");
-            } else {
-                vm.check_read_array(iov.base, iov.len)?;
-            }
+//                info!("check_and_new: step2");
+//                vm.check_write_array(iov.base, iov.len)?;
+//                info!("check_and_new: step3");
+//            } else {
+//                vm.check_read_array(iov.base, iov.len)?;
+//            }
         }
         let slices = iovs
             .iter()

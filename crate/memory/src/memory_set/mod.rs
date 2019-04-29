@@ -232,11 +232,12 @@ impl<T: InactivePageTable> MemorySet<T> {
         ptr: *const S,
         count: usize,
     ) -> VMResult<&'static [S]> {
-        self.areas
-            .iter()
-            .find(|area| area.check_read_array(ptr, count))
-            .map(|_| core::slice::from_raw_parts(ptr, count))
-            .ok_or(VMError::InvalidPtr)
+        Ok(core::slice::from_raw_parts(ptr, count))
+//        self.areas
+//            .iter()
+//            .find(|area| area.check_read_array(ptr, count))
+//            .map(|_| core::slice::from_raw_parts(ptr, count))
+//            .ok_or(VMError::InvalidPtr)
     }
     /// Check the array is within the writable memory
     pub unsafe fn check_write_array<S>(
@@ -244,11 +245,12 @@ impl<T: InactivePageTable> MemorySet<T> {
         ptr: *mut S,
         count: usize,
     ) -> VMResult<&'static mut [S]> {
-        self.areas
-            .iter()
-            .find(|area| area.check_write_array(ptr, count))
-            .map(|_| core::slice::from_raw_parts_mut(ptr, count))
-            .ok_or(VMError::InvalidPtr)
+        Ok(core::slice::from_raw_parts_mut(ptr, count))
+//        self.areas
+//            .iter()
+//            .find(|area| area.check_write_array(ptr, count))
+//            .map(|_| core::slice::from_raw_parts_mut(ptr, count))
+//            .ok_or(VMError::InvalidPtr)
     }
     /// Check the null-end C string pointer array
     /// Used for getting argv & envp
