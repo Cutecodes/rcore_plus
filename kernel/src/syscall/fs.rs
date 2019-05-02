@@ -479,7 +479,11 @@ pub fn sys_ioctl(fd: usize, request: usize, arg1: usize, arg2: usize, arg3: usiz
     );
     let mut proc = process();
     let file_like = proc.get_file_like(fd)?;
-    file_like.ioctl(request, arg1, arg2, arg3)
+    if(fd<3) {
+        file_like.ioctl(request, arg1, arg2, arg3)
+    } else {
+        Ok(0)
+    }
 }
 
 pub fn sys_chdir(path: *const u8) -> SysResult {
