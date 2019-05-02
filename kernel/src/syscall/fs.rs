@@ -479,7 +479,11 @@ pub fn sys_ioctl(fd: usize, request: usize, arg1: usize, arg2: usize, arg3: usiz
     );
     let mut proc = process();
     let file_like = proc.get_file_like(fd)?;
+//    if (fd < 3) {
     file_like.ioctl(request, arg1, arg2, arg3)
+//    }else {
+//        Ok(0)
+//    }
 }
 
 pub fn sys_chdir(path: *const u8) -> SysResult {
@@ -792,9 +796,14 @@ impl Process {
         match fd_dir_path {
             "/proc/self/fd" =>{
                 let fd:u32= fd_name.parse::<u32>().unwrap();
-                info!("lookup_inode_at:BEG  /proc/sefl/fd {}", fd);
+                let fd_path= match self.files.get(&(fd as usize)).unwrap() {
+                    FileLike::File(file) => Some(&file.path),
+                    _ => None,
+                };
+                //if let FileLike::File(file)=self.files.get(&(fd as usize)).unwrap();
+                info!("lookup_inode_at:BEG  /proc/sefl/fd {}, path {}", fd, fd_path.unwrap());
                 //let abs_path=get_abs_path(fd);
-                return Ok(Arc::new(Pseudo::new("/usr/bin/rustc", FileType::SymLink)));
+                return Ok(Arc::new(Pseudo::new(fd_path.unwrap(), FileType::SymLink)));
             }
             _ => {}
         }
