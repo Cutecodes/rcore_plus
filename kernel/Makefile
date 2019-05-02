@@ -34,7 +34,8 @@
 #   u_boot = /path/to/u-boot.bin Only available on aarch64, use u-boot to boot rcore
 # . extra_features = profile | ... Add additional features
 
-arch ?= riscv64
+#arch ?= riscv64
+arch ?= x86_64
 board ?= none
 mode ?= release
 LOG  ?=

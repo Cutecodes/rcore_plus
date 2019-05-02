@@ -755,11 +755,6 @@ impl Process {
         }
     }
 
-//    pub fn  abs_path=get_abs_path(&self, fd:usize)->str{
-//
-//
-//    }
-
     /// Lookup INode from the process.
     ///
     /// - If `path` is relative, then it is interpreted relative to the directory
@@ -792,9 +787,16 @@ impl Process {
         match fd_dir_path {
             "/proc/self/fd" =>{
                 let fd:u32= fd_name.parse::<u32>().unwrap();
-                info!("lookup_inode_at:BEG  /proc/sefl/fd {}", fd);
-                //let abs_path=get_abs_path(fd);
-                return Ok(Arc::new(Pseudo::new("/usr/bin/rustc", FileType::SymLink)));
+                let fd_path= match self.files.get(&(fd as usize)).unwrap() {
+                    FileLike::File(file) => Some(&file.path),
+                    _ => None,
+                };
+                info!("lookup_inode_at:BEG  /proc/sefl/fd {}, path {}", fd, fd_path.unwrap());
+                if(fd_path.is_some()) {
+                    return Ok(Arc::new(Pseudo::new(fd_path.unwrap(), FileType::SymLink)));
+                } else {
+                    {}
+                }
             }
             _ => {}
         }
