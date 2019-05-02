@@ -8,6 +8,7 @@ use spin::RwLock;
 
 use crate::sync::Condvar;
 use rcore_fs::dev::BlockDevice;
+use rcore_fs::dev::DevError;
 
 #[allow(dead_code)]
 pub mod block;
@@ -28,6 +29,14 @@ pub enum DeviceType {
     Gpu,
     Input,
     Block,
+}
+
+/// A specialized `Result` type for device.
+pub type Result<T> = core::result::Result<T, DevError>;
+
+fn unimplemented(name: &str, ret: Result<()>) -> Result<()> {
+    warn!("{} is unimplemented", name);
+    ret
 }
 
 pub trait Driver: Send + Sync {
@@ -82,12 +91,14 @@ pub trait Driver: Send + Sync {
     }
 
     // block related drivers should implement these
-    fn read_block(&self, _block_id: usize, _buf: &mut [u8]) -> bool {
-        unimplemented!("not a block driver")
+    fn read_block(&self, _block_id: usize, _buf: &mut [u8]) -> Result<()>  {
+        unimplemented!("not a readable block driver")
+        //unimplemented("not a readable block driver", Ok(()))
     }
 
-    fn write_block(&self, _block_id: usize, _buf: &[u8]) -> bool {
-        unimplemented!("not a block driver")
+    fn write_block(&self, _block_id: usize, _buf: &[u8]) -> Result<()> {
+        unimplemented!("not a readable block driver")
+        //unimplemented("not a writable block driver", Ok(()))
     }
 }
 
@@ -99,15 +110,19 @@ lazy_static! {
 }
 
 pub struct BlockDriver(Arc<Driver>);
+//pub struct BlockDriver(Mutex<Driver>);
 
 impl BlockDevice for BlockDriver {
     const BLOCK_SIZE_LOG2: u8 = 9; // 512
-    fn read_at(&self, block_id: usize, buf: &mut [u8]) -> bool {
+    fn read_at(&self, block_id: usize, buf: &mut [u8]) -> Result<()>  {
         self.0.read_block(block_id, buf)
     }
 
-    fn write_at(&self, block_id: usize, buf: &[u8]) -> bool {
+    fn write_at(&self, block_id: usize, buf: &[u8]) -> Result<()>  {
         self.0.write_block(block_id, buf)
+    }
+    fn sync(&self) -> Result<()> {
+        Ok(())
     }
 }
 

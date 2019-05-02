@@ -19,6 +19,11 @@ use crate::sync::SpinNoIrqLock as Mutex;
 use super::super::bus::virtio_mmio::*;
 use super::super::{DeviceType, Driver, BLK_DRIVERS, DRIVERS};
 
+use rcore_fs::dev::DevError;
+
+/// A specialized `Result` type for device.
+pub type Result<T> = core::result::Result<T, DevError>;
+
 pub struct VirtIOBlk {
     interrupt_parent: u32,
     interrupt: u32,
@@ -125,7 +130,7 @@ impl Driver for VirtIOBlkDriver {
         format!("virtio_block")
     }
 
-    fn read_block(&self, block_id: usize, buf: &mut [u8]) -> bool {
+    fn read_block(&self, block_id: usize, buf: &mut [u8]) -> Result<()>  {
         let mut driver = self.0.lock();
         // ensure header page is mapped
         active_table().map_if_not_exists(driver.header as usize, driver.header as usize);
@@ -147,13 +152,13 @@ impl Driver for VirtIOBlkDriver {
         if resp.status == VIRTIO_BLK_S_OK {
             let len = min(buf.len(), VIRTIO_BLK_BLK_SIZE);
             buf[..len].clone_from_slice(&resp.data[..len]);
-            true
+            Ok(())
         } else {
-            false
+            Err(DevError)
         }
     }
 
-    fn write_block(&self, block_id: usize, buf: &[u8]) -> bool {
+    fn write_block(&self, block_id: usize, buf: &[u8]) -> Result<()>  {
         let mut driver = self.0.lock();
         // ensure header page is mapped
         active_table().map_if_not_exists(driver.header as usize, driver.header as usize);
@@ -175,9 +180,9 @@ impl Driver for VirtIOBlkDriver {
         driver.queue.get_block();
         let resp = unsafe { &*(&input as *const u8 as *const VirtIOBlkWriteResp) };
         if resp.status == VIRTIO_BLK_S_OK {
-            true
+            Ok(())
         } else {
-            false
+            Err(DevError)
         }
     }
 }
