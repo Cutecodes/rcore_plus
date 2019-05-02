@@ -735,6 +735,12 @@ impl Process {
             _ => Err(SysError::EBADF),
         }
     }
+
+//    pub fn  abs_path=get_abs_path(&self, fd:usize)->str{
+//
+//
+//    }
+
     /// Lookup INode from the process.
     ///
     /// - If `path` is relative, then it is interpreted relative to the directory
@@ -757,9 +763,19 @@ impl Process {
             dirfd as isize, self.cwd, path, follow
         );
         // hard code special path
+        let (fd_dir_path, fd_name) = split_path(&path);
         match path {
             "/proc/self/exe" => {
                 return Ok(Arc::new(Pseudo::new(&self.exec_path, FileType::SymLink)));
+            }
+            _ => {}
+        }
+        match fd_dir_path {
+            "/proc/self/fd" =>{
+                let fd:u32= fd_name.parse::<u32>().unwrap();
+                info!("lookup_inode_at:BEG  /proc/sefl/fd {}", fd);
+                //let abs_path=get_abs_path(fd);
+                return Ok(Arc::new(Pseudo::new("/usr/bin/rustc", FileType::SymLink)));
             }
             _ => {}
         }
@@ -1373,5 +1389,5 @@ impl FdSet {
         }
     }
 }
-
+//pathname is interpreted relative to the current working directory(CWD)
 const AT_FDCWD: usize = -100isize as usize;
